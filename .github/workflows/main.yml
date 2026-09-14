@@ -1,20 +1,23 @@
-name: Unity WebGL Build and Deploy
+name: Unity FAST Validation
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+    paths:
+      - 'Assets/**'
+      - 'Packages/**'
+      - 'ProjectSettings/**'
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  build:
-    name: Build WebGL
+  fast:
+    name: FAST - Unity Compile and Automation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Free disk space
@@ -34,7 +37,7 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      - name: Build Unity project
+      - name: Run Unity FAST validation
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -42,64 +45,4 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: WebGL
-          buildMethod: AutomationEntry.BuildWebGL
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: build/WebGL/WebGL
-
-  deploy:
-    name: Deploy to GitHub Pages
-    runs-on: ubuntu-latest
-    needs: build
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  playwright:
-    name: Playwright WebGL Smoke Test
-    runs-on: ubuntu-latest
-    needs: deploy
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install Playwright and Chromium
-        run: |
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
-
-      - name: Check deployed Unity WebGL
-        env:
-          WEBGL_URL: ${{ needs.deploy.outputs.page_url }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: node scripts/check-webgl.mjs
-
-      - name: Upload Playwright screenshot
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-webgl-screenshot
-          path: playwright-artifacts/
-          if-no-files-found: ignore
-          retention-days: 14
+          buildMethod: AutomationEntry.ValidateOnly

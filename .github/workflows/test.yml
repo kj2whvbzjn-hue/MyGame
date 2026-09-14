@@ -1,0 +1,79 @@
+name: Unity TEST - Local WebGL
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: TEST - WebGL Build and Local Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Build Unity WebGL
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: WebGL
+          buildMethod: AutomationEntry.BuildWebGL
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start local WebGL server
+        run: |
+          python3 -m http.server 8080 --directory build/WebGL/WebGL > /tmp/webgl-server.log 2>&1 &
+          echo $! > /tmp/webgl-server.pid
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/webgl-server.log
+          exit 1
+
+      - name: Playwright local WebGL smoke test
+        env:
+          WEBGL_URL: http://127.0.0.1:8080/
+          GITHUB_SHA: ${{ github.sha }}
+        run: node scripts/check-webgl.mjs
+
+      - name: Upload Playwright screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-playwright-webgl-screenshot
+          path: playwright-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

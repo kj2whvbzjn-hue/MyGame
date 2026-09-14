@@ -8,22 +8,24 @@ using UnityEngine;
 
 public static class AutomationEntry
 {
-    // GameCI buildMethod entry point.
+    // FAST: compile + JSON automation + C# automation tasks only.
+    // No WebGL build and no GitHub Pages deployment.
+    public static void ValidateOnly()
+    {
+        Debug.Log("[Automation] FAST validation started.");
+
+        RunAutomation();
+
+        Debug.Log("[Automation] FAST validation PASS.");
+    }
+
+    // TEST / RELEASE: automation followed by a WebGL build.
     public static void BuildWebGL()
     {
         Debug.Log("[Automation] BuildWebGL started.");
 
-        // 1. JSON-driven operations.
-        AutomationJsonImporter.RunFromDefaultFile();
+        RunAutomation();
 
-        // 2. Optional C# tasks for operations that are not convenient in JSON.
-        AutomationTaskRunner.RunAll();
-
-        // 3. Persist editor changes before the build.
-        EditorSceneManager.SaveOpenScenes();
-        AssetDatabase.SaveAssets();
-
-        // GitHub Pages friendly WebGL output.
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
         PlayerSettings.WebGL.decompressionFallback = false;
 
@@ -65,5 +67,14 @@ public static class AutomationEntry
             $"[Automation] WebGL build succeeded. " +
             $"size={report.summary.totalSize} bytes, " +
             $"time={report.summary.totalTime}");
+    }
+
+    private static void RunAutomation()
+    {
+        AutomationJsonImporter.RunFromDefaultFile();
+        AutomationTaskRunner.RunAll();
+
+        EditorSceneManager.SaveOpenScenes();
+        AssetDatabase.SaveAssets();
     }
 }
