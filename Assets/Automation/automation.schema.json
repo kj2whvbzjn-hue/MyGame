@@ -18,8 +18,13 @@
             "type": "string",
             "enum": [
               "log",
+              "createScene",
               "openScene",
+              "createEmpty",
+              "createCamera2D",
+              "createSpriteRect",
               "createPrimitive",
+              "addComponent",
               "setTransform",
               "deleteObject",
               "saveScene"
@@ -31,16 +36,11 @@
           "target": {
             "type": "string"
           },
+          "componentType": {
+            "type": "string"
+          },
           "primitive": {
-            "type": "string",
-            "enum": [
-              "Cube",
-              "Sphere",
-              "Capsule",
-              "Cylinder",
-              "Plane",
-              "Quad"
-            ]
+            "type": "string"
           },
           "scenePath": {
             "type": "string"
@@ -49,32 +49,52 @@
             "type": "string"
           },
           "position": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 3,
-            "maxItems": 3
+            "$ref": "#/$defs/vec3"
           },
           "rotation": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 3,
-            "maxItems": 3
+            "$ref": "#/$defs/vec3"
           },
           "scale": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 3,
-            "maxItems": 3
+            "$ref": "#/$defs/vec3"
+          },
+          "color": {
+            "$ref": "#/$defs/color"
+          },
+          "backgroundColor": {
+            "$ref": "#/$defs/color"
+          },
+          "orthographicSize": {
+            "type": "number"
+          },
+          "sortingOrder": {
+            "type": "integer"
+          },
+          "setAsOnlyBuildScene": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
       }
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "color": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "minItems": 3,
+      "maxItems": 4
     }
   },
   "additionalProperties": false
