@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MyGame Unity Automation Commands",
+  "type": "object",
+  "required": [
+    "commands"
+  ],
+  "properties": {
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "log",
+              "openScene",
+              "createPrimitive",
+              "setTransform",
+              "deleteObject",
+              "saveScene"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "primitive": {
+            "type": "string",
+            "enum": [
+              "Cube",
+              "Sphere",
+              "Capsule",
+              "Cylinder",
+              "Plane",
+              "Quad"
+            ]
+          },
+          "scenePath": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "position": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "rotation": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "scale": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
