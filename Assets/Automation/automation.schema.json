@@ -27,7 +27,10 @@
               "addComponent",
               "setTransform",
               "deleteObject",
-              "saveScene"
+              "saveScene",
+              "spawnAsset",
+              "setSpriteAsset",
+              "setAudioAsset"
             ]
           },
           "name": {
@@ -71,6 +74,23 @@
           },
           "setAsOnlyBuildScene": {
             "type": "boolean"
+          },
+          "asset": {
+            "type": "string"
+          },
+          "assetPath": {
+            "type": "string"
+          },
+          "loop": {
+            "type": "boolean"
+          },
+          "playOnAwake": {
+            "type": "boolean"
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
           }
         },
         "additionalProperties": false

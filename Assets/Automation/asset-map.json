@@ -1,0 +1,19 @@
+{
+  "assets": [
+    {
+      "key": "example-player-prefab",
+      "path": "Assets/Art/Prefabs/Player.prefab",
+      "kind": "prefab"
+    },
+    {
+      "key": "example-goblin-sprite",
+      "path": "Assets/Art/Sprites/Goblin.png",
+      "kind": "sprite"
+    },
+    {
+      "key": "example-battle-bgm",
+      "path": "Assets/Audio/BattleTheme.ogg",
+      "kind": "audio"
+    }
+  ]
+}

@@ -23,6 +23,13 @@ public sealed class AutomationCommand
     public string scenePath;
     public string message;
 
+    // Asset automation
+    public string asset;
+    public string assetPath;
+    public bool loop = false;
+    public bool playOnAwake = true;
+    public float volume = 1f;
+
     public float[] position;
     public float[] rotation;
     public float[] scale;
@@ -34,13 +41,32 @@ public sealed class AutomationCommand
     public bool setAsOnlyBuildScene = false;
 }
 
+[Serializable]
+public sealed class AutomationAssetMapFile
+{
+    public AutomationAssetMapEntry[] assets;
+}
+
+[Serializable]
+public sealed class AutomationAssetMapEntry
+{
+    public string key;
+    public string path;
+    public string kind;
+}
+
 public static class AutomationJsonImporter
 {
     private const string DefaultRelativePath = "Automation/command.json";
+    private const string AssetMapRelativePath = "Automation/asset-map.json";
     private const string WhiteSpritePath = "Assets/Generated/AutomationWhite.png";
+
+    private static AutomationAssetMapFile cachedAssetMap;
 
     public static void RunFromDefaultFile()
     {
+        cachedAssetMap = LoadAssetMap();
+
         string path = Path.Combine(Application.dataPath, DefaultRelativePath);
 
         if (!File.Exists(path))
@@ -68,6 +94,26 @@ public static class AutomationJsonImporter
         EditorSceneManager.SaveOpenScenes();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+    }
+
+    private static AutomationAssetMapFile LoadAssetMap()
+    {
+        string path = Path.Combine(Application.dataPath, AssetMapRelativePath);
+
+        if (!File.Exists(path))
+        {
+            Debug.Log("[AutomationAssets] No asset-map.json found; direct assetPath commands still work.");
+            return new AutomationAssetMapFile { assets = Array.Empty<AutomationAssetMapEntry>() };
+        }
+
+        string json = File.ReadAllText(path);
+        AutomationAssetMapFile map = JsonUtility.FromJson<AutomationAssetMapFile>(json);
+
+        if (map == null || map.assets == null)
+            return new AutomationAssetMapFile { assets = Array.Empty<AutomationAssetMapEntry>() };
+
+        Debug.Log($"[AutomationAssets] Loaded {map.assets.Length} asset mapping(s).");
+        return map;
     }
 
     private static void Execute(AutomationCommand command, int index)
@@ -110,6 +156,18 @@ public static class AutomationJsonImporter
                 AddComponent(command, index);
                 break;
 
+            case "spawnAsset":
+                SpawnAsset(command, index);
+                break;
+
+            case "setSpriteAsset":
+                SetSpriteAsset(command, index);
+                break;
+
+            case "setAudioAsset":
+                SetAudioAsset(command, index);
+                break;
+
             case "setTransform":
                 SetTransform(command, index);
                 break;
@@ -126,6 +184,130 @@ public static class AutomationJsonImporter
                 throw new InvalidOperationException(
                     $"Command #{index} has unsupported type: {command.type}");
         }
+    }
+
+    private static string ResolveAssetPath(AutomationCommand command, int index)
+    {
+        if (!string.IsNullOrWhiteSpace(command.assetPath))
+        {
+            if (!command.assetPath.StartsWith("Assets/", StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Command #{index}: assetPath must start with 'Assets/': {command.assetPath}");
+
+            return command.assetPath;
+        }
+
+        Require(command.asset, index, "asset or assetPath");
+
+        AutomationAssetMapEntry match = cachedAssetMap?.assets?
+            .FirstOrDefault(entry =>
+                entry != null &&
+                string.Equals(entry.key, command.asset, StringComparison.OrdinalIgnoreCase));
+
+        if (match == null || string.IsNullOrWhiteSpace(match.path))
+        {
+            throw new InvalidOperationException(
+                $"Command #{index}: asset key '{command.asset}' is not present in Assets/Automation/asset-map.json.");
+        }
+
+        return match.path;
+    }
+
+    private static void SpawnAsset(AutomationCommand command, int index)
+    {
+        string path = ResolveAssetPath(command, index);
+
+        GameObject instance = null;
+
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (prefab != null)
+        {
+            instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        }
+        else
+        {
+            Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite != null)
+            {
+                instance = new GameObject(
+                    string.IsNullOrWhiteSpace(command.name) ? sprite.name : command.name);
+
+                SpriteRenderer renderer = instance.AddComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.sortingOrder = command.sortingOrder;
+
+                if (HasColor(command.color))
+                    renderer.color = ToColor(command.color);
+            }
+        }
+
+        if (instance == null)
+        {
+            throw new InvalidOperationException(
+                $"Command #{index}: spawnAsset supports Prefab/GameObject or Sprite assets. Could not load: {path}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(command.name))
+            instance.name = command.name;
+
+        ApplyTransform(instance.transform, command);
+
+        Debug.Log($"[AutomationAssets] Spawned asset '{path}' as '{instance.name}'.");
+    }
+
+    private static void SetSpriteAsset(AutomationCommand command, int index)
+    {
+        Require(command.target, index, "target");
+        string path = ResolveAssetPath(command, index);
+
+        GameObject go = GameObject.Find(command.target);
+        if (go == null)
+            throw new InvalidOperationException(
+                $"Command #{index}: target not found: {command.target}");
+
+        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null)
+            throw new InvalidOperationException(
+                $"Command #{index}: Sprite could not be loaded: {path}");
+
+        SpriteRenderer renderer = go.GetComponent<SpriteRenderer>();
+        if (renderer == null)
+            renderer = go.AddComponent<SpriteRenderer>();
+
+        renderer.sprite = sprite;
+        renderer.sortingOrder = command.sortingOrder;
+
+        if (HasColor(command.color))
+            renderer.color = ToColor(command.color);
+
+        Debug.Log($"[AutomationAssets] Assigned sprite '{path}' to '{go.name}'.");
+    }
+
+    private static void SetAudioAsset(AutomationCommand command, int index)
+    {
+        Require(command.target, index, "target");
+        string path = ResolveAssetPath(command, index);
+
+        GameObject go = GameObject.Find(command.target);
+        if (go == null)
+            throw new InvalidOperationException(
+                $"Command #{index}: target not found: {command.target}");
+
+        AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+        if (clip == null)
+            throw new InvalidOperationException(
+                $"Command #{index}: AudioClip could not be loaded: {path}");
+
+        AudioSource source = go.GetComponent<AudioSource>();
+        if (source == null)
+            source = go.AddComponent<AudioSource>();
+
+        source.clip = clip;
+        source.loop = command.loop;
+        source.playOnAwake = command.playOnAwake;
+        source.volume = Mathf.Clamp01(command.volume);
+
+        Debug.Log($"[AutomationAssets] Assigned audio '{path}' to '{go.name}'.");
     }
 
     private static void CreateScene(AutomationCommand command, int index)
