@@ -17,10 +17,18 @@ const page = await browser.newPage({
 });
 
 const pageErrors = [];
+const consoleErrors = [];
+
 page.on('pageerror', error => pageErrors.push(error.message));
+page.on('console', message => {
+  if (message.type() === 'error') {
+    consoleErrors.push(message.text());
+  }
+});
 
 try {
   console.log(`Opening: ${url}`);
+
   const response = await page.goto(url, {
     waitUntil: 'domcontentloaded',
     timeout: 120_000,
@@ -33,12 +41,16 @@ try {
   const canvas = page.locator('#unity-canvas');
   await canvas.waitFor({ state: 'visible', timeout: 120_000 });
 
-  // Unity's standard WebGL template hides the loading bar after
-  // createUnityInstance() has completed successfully.
-  await page.waitForFunction(() => {
-    const loadingBar = document.querySelector('#unity-loading-bar');
-    return !loadingBar || getComputedStyle(loadingBar).display === 'none';
-  }, { timeout: 120_000 });
+  // waitForFunction's timeout belongs in the THIRD argument.
+  // Passing it as the second argument makes Playwright use its default 30s timeout.
+  await page.waitForFunction(
+    () => {
+      const loadingBar = document.querySelector('#unity-loading-bar');
+      return !loadingBar || getComputedStyle(loadingBar).display === 'none';
+    },
+    null,
+    { timeout: 120_000 }
+  );
 
   const warningText = await page.locator('#unity-warning').textContent().catch(() => '');
   if ((warningText ?? '').trim()) {
@@ -72,11 +84,24 @@ try {
 
   console.log('PASS: Unity WebGL loaded successfully.');
   console.log(`Canvas: ${JSON.stringify(canvasState)}`);
+
+  if (consoleErrors.length > 0) {
+    console.log(`Browser console errors seen after load: ${consoleErrors.join(' | ')}`);
+  }
 } catch (error) {
+  console.error('Playwright smoke test failed.');
+  if (pageErrors.length > 0) {
+    console.error(`Page errors: ${pageErrors.join(' | ')}`);
+  }
+  if (consoleErrors.length > 0) {
+    console.error(`Console errors: ${consoleErrors.join(' | ')}`);
+  }
+
   await page.screenshot({
     path: 'playwright-artifacts/webgl-smoke-failure.png',
     fullPage: true,
   }).catch(() => {});
+
   throw error;
 } finally {
   await browser.close();
