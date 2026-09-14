@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MyGame Unity Automation Commands",
+  "type": "object",
+  "required": [
+    "commands"
+  ],
+  "properties": {
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "log",
+              "createScene",
+              "openScene",
+              "createEmpty",
+              "createCamera2D",
+              "createSpriteRect",
+              "createPrimitive",
+              "addComponent",
+              "setTransform",
+              "deleteObject",
+              "saveScene"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "componentType": {
+            "type": "string"
+          },
+          "primitive": {
+            "type": "string"
+          },
+          "scenePath": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/$defs/vec3"
+          },
+          "rotation": {
+            "$ref": "#/$defs/vec3"
+          },
+          "scale": {
+            "$ref": "#/$defs/vec3"
+          },
+          "color": {
+            "$ref": "#/$defs/color"
+          },
+          "backgroundColor": {
+            "$ref": "#/$defs/color"
+          },
+          "orthographicSize": {
+            "type": "number"
+          },
+          "sortingOrder": {
+            "type": "integer"
+          },
+          "setAsOnlyBuildScene": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "color": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "minItems": 3,
+      "maxItems": 4
+    }
+  },
+  "additionalProperties": false
+}
