@@ -1,0 +1,54 @@
+name: Unity CI Preflight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Check Unity project
+        shell: bash
+        run: |
+          echo "Checking Unity project..."
+
+          test -d Assets
+          test -d Packages
+          test -d ProjectSettings
+          test -f ProjectSettings/ProjectVersion.txt
+
+          echo "Unity project structure: OK"
+          echo ""
+          echo "ProjectVersion.txt:"
+          cat ProjectSettings/ProjectVersion.txt
+
+      - name: Check Unity secrets
+        shell: bash
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          if [ -n "$UNITY_EMAIL" ]; then
+            echo "UNITY_EMAIL: OK"
+          else
+            echo "::error::UNITY_EMAIL is missing"
+            exit 1
+          fi
+
+          if [ -n "$UNITY_PASSWORD" ]; then
+            echo "UNITY_PASSWORD: OK"
+          else
+            echo "::error::UNITY_PASSWORD is missing"
+            exit 1
+          fi
+
+          if [ -n "$UNITY_LICENSE" ]; then
+            echo "UNITY_LICENSE: OK"
+          else
+            echo "::warning::UNITY_LICENSE is not set yet"
+          fi
