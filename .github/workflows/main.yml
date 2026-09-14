@@ -2,6 +2,9 @@ name: Unity WebGL Build and Deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -31,6 +34,23 @@ jobs:
           fetch-depth: 0
           lfs: true
 
+      - name: Configure WebGL for GitHub Pages
+        shell: bash
+        run: |
+          mkdir -p Assets/Editor
+          cat > Assets/Editor/ConfigureWebGLForPages.cs <<'EOF'
+          using UnityEditor;
+
+          [InitializeOnLoad]
+          public static class ConfigureWebGLForPages
+          {
+              static ConfigureWebGLForPages()
+              {
+                  PlayerSettings.WebGL.decompressionFallback = true;
+              }
+          }
+          EOF
+
       - name: Build Unity project
         uses: game-ci/unity-builder@v4
         env:
@@ -46,7 +66,7 @@ jobs:
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: build/WebGL
+          path: build/WebGL/WebGL
 
   deploy:
     name: Deploy to GitHub Pages
