@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test:
@@ -29,6 +29,33 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+
+      # Keep downloaded Unity packages cached without restoring the whole Library.
+      - name: Restore Unity PackageCache
+        id: unity-package-cache
+        uses: actions/cache@v4
+        with:
+          path: Library/PackageCache
+          key: unity-packagecache-${{ runner.os }}-${{ hashFiles('Packages/manifest.json', 'Packages/packages-lock.json', 'ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: |
+            unity-packagecache-${{ runner.os }}-
+
+      # Preserve Unity's WebGL incremental-build state, not only final Bee artifacts.
+      # Unity 6 uses Library/Bee plus BuildPlayerData/PlayerDataCache metadata to decide
+      # whether Player build content can actually be reused.
+      # We still avoid caching the entire Library because that previously caused exit 137.
+      - name: Restore WebGL incremental build cache
+        id: unity-webgl-build-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            Library/Bee
+            Library/BuildPlayerData
+            Library/PlayerDataCache
+            Library/BurstCache/Wasm-Wasm
+          key: unity-webgl-incremental-${{ runner.os }}-${{ hashFiles('ProjectSettings/ProjectVersion.txt') }}-${{ github.sha }}
+          restore-keys: |
+            unity-webgl-incremental-${{ runner.os }}-${{ hashFiles('ProjectSettings/ProjectVersion.txt') }}-
 
       - name: Build Unity WebGL
         uses: game-ci/unity-builder@v4
@@ -77,3 +104,52 @@ jobs:
           path: playwright-artifacts/
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Publish latest TEST evidence for AI review
+        if: always()
+        run: |
+          mkdir -p test-results/latest
+          rm -f test-results/latest/webgl-smoke.png
+          rm -f test-results/latest/webgl-smoke-failure.png
+          rm -f test-results/latest/webgl-report.json
+          rm -f test-results/latest/webgl-ai-review.jpg
+
+          if [ -f playwright-artifacts/webgl-smoke.png ]; then
+            cp playwright-artifacts/webgl-smoke.png test-results/latest/webgl-smoke.png
+          fi
+
+          if [ -f playwright-artifacts/webgl-smoke-failure.png ]; then
+            cp playwright-artifacts/webgl-smoke-failure.png test-results/latest/webgl-smoke-failure.png
+          fi
+
+          if [ -f playwright-artifacts/webgl-report.json ]; then
+            cp playwright-artifacts/webgl-report.json test-results/latest/webgl-report.json
+          fi
+
+          if [ -f playwright-artifacts/webgl-ai-review.jpg ]; then
+            cp playwright-artifacts/webgl-ai-review.jpg test-results/latest/webgl-ai-review.jpg
+          fi
+
+          cat > test-results/latest/run-info.json <<EOF
+          {
+            "workflow": "Unity TEST - Local WebGL",
+            "run_id": "${GITHUB_RUN_ID}",
+            "source_sha": "${GITHUB_SHA}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "result_files": "See this directory"
+          }
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test-results/latest
+
+          if git diff --cached --quiet; then
+            echo "No TEST evidence changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: publish latest TEST evidence [skip ci]"
+          # Unity generates unstaged Library/project files during the build.
+          # Do not run git pull --rebase here: it fails when those files exist.
+          git push origin HEAD:"${GITHUB_REF_NAME}"
